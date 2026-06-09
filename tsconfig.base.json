@@ -1,0 +1,49 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
+
+    "module": "ESNext",
+
+    "moduleResolution": "Bundler",
+
+    "strict": true,
+
+    "skipLibCheck": true,
+
+    "resolveJsonModule": true,
+
+    "esModuleInterop": true,
+
+    "allowSyntheticDefaultImports": true,
+
+    "forceConsistentCasingInFileNames": true,
+
+    "allowJs": false,
+
+    "noEmit": true,
+
+    "incremental": true,
+
+    "baseUrl": ".",
+
+    "paths": {
+      "@ooops/ui": [
+        "packages/ui/src"
+      ],
+
+      "@ooops/shared": [
+        "packages/shared/src"
+      ],
+
+      "@ooops/types": [
+        "packages/types/src"
+      ]
+    }
+  }
+}
