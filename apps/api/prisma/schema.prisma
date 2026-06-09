@@ -1,0 +1,377 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountStatus {
+  PROFILE_PENDING
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum WalletType {
+  METAMASK
+  TRUST
+  PHANTOM
+  ATOMIC
+  RABBY
+  BITGET
+  BASE
+  MEW
+  ALPHA
+  MATH
+  ZERION
+  OTHER
+}
+
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum CoinTemplateType {
+  FIXED_SUPPLY
+  TIME_UNLOCK
+}
+
+enum CoinStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum TradeSide {
+  BUY
+  SELL
+}
+
+enum NotificationType {
+  FOLLOW
+  COIN_CREATED
+  COIN_VIEWED
+  TRADE
+  REFERRAL
+  REWARD
+  SYSTEM
+}
+
+enum UnlockType {
+  LINEAR
+  CLIFF
+}
+
+model User {
+  id String @id @default(cuid())
+
+  // profile
+  displayName String? @unique
+  avatarUrl String?
+  coverUrl String?
+  bio String?
+  profileComplete Boolean @default(false)
+  status AccountStatus @default(PROFILE_PENDING)
+
+  // referral
+  referralCode String @unique
+  referredById String?
+  referredBy User? @relation("UserReferral", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals User[] @relation("UserReferral")
+
+  // lifecycle
+  firstSignatureAt DateTime?
+  lastActiveAt DateTime?
+
+  // relations
+  wallet Wallet?
+  stats UserStats?
+  createdCoins Coin[] @relation("CoinCreator")
+  followingRelations Follow[] @relation("UserFollowing")
+  followerRelations Follow[] @relation("UserFollowers")
+  sessions WalletSession[]
+  nonces WalletNonce[]
+  viewedCoins CoinView[] @relation("UserCoinViews")
+  trades CoinTrade[]
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([displayName])
+  @@index([referralCode])
+  @@index([status])
+}
+
+model Wallet {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  address String @unique
+  walletType WalletType @default(OTHER)
+  chainId Int @default(137)
+
+  firstSignedAt DateTime?
+  lastSignedInAt DateTime?
+
+  balances WalletAssetBalance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([address])
+  @@index([walletType])
+  @@index([chainId])
+}
+
+model WalletSession {
+  id String @id @default(cuid())
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sessionToken String @unique
+  status SessionStatus @default(ACTIVE)
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([sessionToken])
+  @@index([status])
+}
+
+model WalletNonce {
+  id String @id @default(cuid())
+
+  walletAddress String
+  userId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  nonce String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([walletAddress])
+  @@index([nonce])
+}
+
+model UserStats {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  coinsCreatedCount Int @default(0)
+  coinsPurchasedCount Int @default(0)
+
+  followersCount Int @default(0)
+  followingCount Int @default(0)
+
+  coinsViewedCount Int @default(0)
+  coinsViewedByCount Int @default(0)
+
+  viewScoreGiven Int @default(0)
+  viewScoreReceived Int @default(0)
+  coinCreationScore Int @default(0)
+
+  invitedUsersCount Int @default(0)
+  inviteScore Int @default(0)
+
+  reputationScore Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Follow {
+  id String @id @default(cuid())
+
+  followerId String
+  followingId String
+
+  follower User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Coin {
+  id String @id @default(cuid())
+
+  creatorUserId String
+  creator User @relation("CoinCreator", fields: [creatorUserId], references: [id], onDelete: Cascade)
+
+  name String
+  symbol String
+  contractAddress String @unique
+  templateType CoinTemplateType
+  status CoinStatus @default(ACTIVE)
+
+  totalSupply String
+  creatorAllocationBps Int @default(1000)
+  liquidityAllocationBps Int @default(9000)
+
+  imageUrl String?
+  metadataUrl String?
+  description String?
+
+  pairTokenAddress String?
+  poolAddress String?
+  launchedAt DateTime?
+
+  stats CoinStats?
+  views CoinView[]
+  trades CoinTrade[]
+  balances WalletAssetBalance[]
+  locks CoinLock[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([creatorUserId])
+  @@index([symbol])
+  @@index([status])
+}
+
+model CoinStats {
+  id String @id @default(cuid())
+
+  coinId String @unique
+  coin Coin @relation(fields: [coinId], references: [id], onDelete: Cascade)
+
+  viewsCount Int @default(0)
+  viewScore Int @default(0)
+  holdersCount Int @default(0)
+  buysCount Int @default(0)
+  sellsCount Int @default(0)
+  commentsCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CoinView {
+  id String @id @default(cuid())
+
+  viewerUserId String
+  viewer User @relation("UserCoinViews", fields: [viewerUserId], references: [id], onDelete: Cascade)
+
+  coinId String
+  coin Coin @relation(fields: [coinId], references: [id], onDelete: Cascade)
+
+  durationSeconds Int?
+  isQualified Boolean @default(false)
+  pointsAwarded Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([viewerUserId])
+  @@index([coinId])
+  @@index([createdAt])
+}
+
+model CoinTrade {
+  id String @id @default(cuid())
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  coinId String
+  coin Coin @relation(fields: [coinId], references: [id], onDelete: Cascade)
+
+  side TradeSide
+  amount String
+  quoteAmount String?
+  pricePerToken String?
+  txHash String @unique
+  blockNumber BigInt?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([coinId])
+  @@index([side])
+  @@index([txHash])
+}
+
+model WalletAssetBalance {
+  id String @id @default(cuid())
+
+  walletId String
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  coinId String
+  coin Coin @relation(fields: [coinId], references: [id], onDelete: Cascade)
+
+  balance String @default("0")
+  lockedBalance String @default("0")
+  lastSyncedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([walletId, coinId])
+  @@index([walletId])
+  @@index([coinId])
+}
+
+model CoinLock {
+  id String @id @default(cuid())
+
+  coinId String
+  coin Coin @relation(fields: [coinId], references: [id], onDelete: Cascade)
+
+  beneficiaryUserId String?
+  beneficiaryUser User? @relation(fields: [beneficiaryUserId], references: [id], onDelete: SetNull)
+
+  beneficiaryWalletAddress String
+
+  unlockType UnlockType @default(LINEAR)
+  lockedAmount String
+  unlockedAmount String @default("0")
+  startAt DateTime
+  unlockAt DateTime
+  releasedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([coinId])
+  @@index([beneficiaryWalletAddress])
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type NotificationType
+  title String
+  body String
+  payload Json?
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([readAt])
+}
