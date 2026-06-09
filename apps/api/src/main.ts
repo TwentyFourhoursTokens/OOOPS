@@ -1,5 +1,5 @@
-import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module";
 import { PrismaService } from "./prisma/prisma.service";
@@ -22,7 +22,13 @@ async function bootstrap() {
 
   await prisma.enableShutdownHooks(app);
 
-  await app.listen(3001);
+  const port = Number(process.env.PORT || 3001);
+
+  await app.listen(port);
+
+  console.log(
+    `🚀 API running at http://localhost:${port}/api`,
+  );
 }
 
 bootstrap();
